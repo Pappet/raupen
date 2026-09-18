@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#F6C23E">
+<title>Raupen-Garten</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/favicon-32.png">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#2F3A1F;--s:60px}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden}
+body{font-family:'Fredoka',ui-rounded,system-ui,sans-serif;color:var(--ink);
+  background:#A9D86F;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+#app{height:100dvh;display:flex;flex-direction:column}
+
+header{position:relative;height:66px;flex:none;z-index:5;
+  background:linear-gradient(#CFEBFF,#E6F6FF);border-bottom:10px solid #93C95A}
+.sign{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:#F6C23E;color:var(--ink);
+  border:4px solid #fff;border-radius:18px;padding:3px 22px;font-weight:700;font-size:clamp(20px,3vw,30px);
+  white-space:nowrap;box-shadow:0 5px 0 rgba(0,0,0,.15)}
+.stats{position:absolute;right:12px;top:10px;display:flex;gap:8px}
+.chip{background:#fff;border-radius:999px;padding:3px 14px;font-weight:700;font-size:22px;border:none;
+  box-shadow:0 3px 0 rgba(0,0,0,.15);font-family:inherit;color:inherit;display:flex;align-items:center;gap:6px}
+.chip.bump{animation:bump .4s}
+@keyframes bump{50%{transform:scale(1.3)}}
+
+#field{position:relative;flex:1;overflow:hidden;touch-action:none;
+  background:
+    radial-gradient(circle at 20% 30%,rgba(255,255,255,.12) 0 2px,transparent 3px) 0 0/46px 46px,
+    radial-gradient(circle at 70% 80%,rgba(60,120,40,.12) 0 2px,transparent 3px) 0 0/38px 38px,
+    linear-gradient(#B6E07F,#9ACD62)}
+.flower{position:absolute;font-size:28px;opacity:.85;pointer-events:none}
+
+/* Blatt */
+.leaf{position:absolute;border:4px solid #4F9E36;
+  background:linear-gradient(160deg,#A5E27E,#6DBB4A);
+  border-radius:50% 8% 50% 8% / 100% 30% 100% 30%;
+  transition:transform .9s ease-in,opacity .9s;box-shadow:0 8px 0 rgba(0,0,0,.08)}
+.leaf::after{content:'';position:absolute;left:6%;right:6%;top:calc(50% - 2px);height:4px;border-radius:2px;background:rgba(79,158,54,.55)}
+.leaf.munch{transform:scale(.15) rotate(-20deg);opacity:0}
+.leaf.enter{animation:grow .5s cubic-bezier(.3,1.5,.5,1)}
+@keyframes grow{0%{transform:scale(0)}}
+.slot{position:absolute;width:var(--s);height:var(--s);border-radius:50%;z-index:1;
+  border:4px dashed var(--cd);background:linear-gradient(var(--ca),var(--ca)),rgba(255,255,255,.9)}
+.slot.g2{box-shadow:inset 0 0 0 calc(var(--s)*.11) rgba(255,255,255,.55)}
+.slot.need{animation:need .5s 4}
+@keyframes need{50%{background:#fff;transform:scale(1.15)}}
+.slot.hop{animation:hop .35s}
+.badge{position:absolute;width:calc(var(--s)*1.45);height:calc(var(--s)*1.45);border-radius:50%;
+  background:#fff;border:6px solid var(--c);color:var(--cd);display:grid;place-items:center;cursor:pointer;
+  font-size:calc(var(--s)*.95);font-weight:700;box-shadow:0 5px 0 rgba(0,0,0,.15);z-index:3}
+
+/* Raupen */
+.cat{position:absolute;touch-action:none;z-index:2}
+.cat.drag{z-index:60;filter:drop-shadow(0 10px 6px rgba(0,0,0,.25))}
+.cat.glide{transition:left .45s ease,top .45s ease}
+.cat.wig{animation:wig .45s 4}
+@keyframes wig{25%{rotate:-7deg}75%{rotate:7deg}}
+.cat.armed{animation:armed .5s infinite}
+@keyframes armed{25%{rotate:-8deg;scale:1.03}75%{rotate:8deg;scale:1.03}}
+.snipmark{position:absolute;z-index:99;pointer-events:none;translate:-50% -50%;
+  font-size:calc(var(--s)*.8);animation:snipmark .4s infinite alternate}
+@keyframes snipmark{to{scale:1.25;rotate:-15deg}}
+.cat.joined{animation:joined .35s}
+@keyframes joined{50%{scale:1.1}}
+.cat.fade{transition:opacity .5s,scale .5s;opacity:0;scale:.3}
+.seg{position:absolute;top:calc(var(--s)*.32);width:var(--s);height:var(--s);border-radius:50%;cursor:grab;
+  background:radial-gradient(circle at 35% 30%,var(--cl),var(--c) 60%,var(--cd));border:3px solid var(--cd);
+  transition:background .3s,border-color .3s}
+/* ab der 6. Kugel ein heller Ring: 7 = fünf und zwei */
+.seg.g2{box-shadow:inset 0 0 0 calc(var(--s)*.11) rgba(255,255,255,.55)}
+.seg.hop{animation:hop .35s}
+@keyframes hop{50%{translate:0 -35%}}
+.seg.over{filter:grayscale(1);opacity:.45}
+.seg.munch{animation:chomp .25s infinite alternate}
+@keyframes chomp{to{translate:0 -8%}}
+.seg.head::before,.seg.head::after{content:'';position:absolute;width:calc(var(--s)*.2);height:calc(var(--s)*.46);
+  top:calc(var(--s)*-.36);left:18%;rotate:-18deg;
+  background:radial-gradient(circle at 50% 16%,var(--cd) 0 30%,transparent 32%),
+             linear-gradient(90deg,transparent 40%,var(--cd) 40% 60%,transparent 60%)}
+.seg.head::after{left:52%;rotate:18deg}
+.eye{position:absolute;top:24%;width:24%;height:30%;border-radius:50%;
+  background:radial-gradient(circle at 45% 60%,#222 0 36%,#fff 40%)}
+.eye.l{left:16%}.eye.r{left:50%}
+.mouth{position:absolute;left:24%;top:58%;width:40%;height:18%;border-bottom:3px solid var(--ink);border-radius:0 0 50% 50%}
+
+.fly{position:fixed;font-size:56px;z-index:80;pointer-events:none;
+  transition:left 1.1s cubic-bezier(.4,-.3,.6,1),top 1.1s cubic-bezier(.4,-.3,.6,1),scale 1.1s;translate:-50% -50%}
+
+#start{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;
+  background:rgba(207,235,255,.94)}
+#start .big{font-size:min(28vh,190px);line-height:1;animation:float 2.4s ease-in-out infinite}
+@keyframes float{50%{translate:0 -12%}}
+#start h1{margin:0;font-size:clamp(34px,6vw,64px);color:#3E8C2F;font-weight:700;text-align:center}
+#go{font-family:inherit;font-size:clamp(26px,4vw,40px);font-weight:700;color:var(--ink);background:#F6C23E;
+  border:none;border-radius:999px;padding:18px 44px;box-shadow:0 8px 0 #C0891A;cursor:pointer}
+#go:active{transform:translateY(5px);box-shadow:0 3px 0 #C0891A}
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="sign">Raupen-Garten</div>
+    <div class="stats">
+      <span class="chip" id="flyChip">🦋 <b id="flies">0</b></span>
+      <button class="chip" id="fs" aria-label="Vollbild">⛶</button>
+    </div>
+  </header>
+  <div id="field">
+    <span class="flower" style="left:5%;top:3%">🌼</span>
+    <span class="flower" style="right:7%;top:9%">🌷</span>
+    <span class="flower" style="left:42%;top:4%">🌼</span>
+    <span class="flower" style="right:20%;top:2%">🌻</span>
+  </div>
+</div>
+<div id="start">
+  <div class="big">🐛</div>
+  <h1>Raupen-Garten</h1>
+  <button id="go">Garten öffnen</button>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => a.map(v=>[Math.random(),v]).sort((x,y)=>x[0]-y[0]).map(x=>x[1]);
+const W = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn'];
+const Cap = w => w[0].toUpperCase() + w.slice(1);
+/* Jede Länge hat ihre eigene Farbe */
+const COLORS = [null,'#EC6F8E','#9B6BD6','#5DB548','#3FA0E0','#F39A2E','#27B3A0','#E0453A','#F2C640','#9A6B45','#34489E'];
+function shade(hex, f){           // f>0 heller, f<0 dunkler
+  const n = parseInt(hex.slice(1),16); let r=n>>16, g=n>>8&255, b=n&255;
+  const t = f>0 ? 255 : 0, k = Math.abs(f);
+  r=Math.round(r+(t-r)*k); g=Math.round(g+(t-g)*k); b=Math.round(b+(t-b)*k);
+  return `rgb(${r},${g},${b})`;
+}
+function colorVars(el, n){
+  const c = COLORS[n];
+  el.style.setProperty('--c', c);
+  el.style.setProperty('--cl', shade(c,.35));
+  el.style.setProperty('--cd', shade(c,-.28));
+  el.style.setProperty('--ca', c + '55');
+}
+const SAVE_KEY = 'raupen-spielstand';
+
+const S = {T:0, cats:[], solved:0, flies:0, busy:false, leafCat:null, hintT:null};
+const field = $('field');
+let s = 60, step = 50, leafEl = null, badgeEl = null, slots = [];
+
+/* ---------- Ton & Sprache ---------- */
+let AC=null;
+function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}} if(AC&&AC.state==='suspended')AC.resume(); return AC; }
+function tone(f,d=.12,type='sine',vol=.18,delay=0,slide=0){
+  const a=ac(); if(!a) return; const t=a.currentTime+delay;
+  const o=a.createOscillator(), g=a.createGain(); o.type=type; o.frequency.setValueAtTime(f,t);
+  if(slide) o.frequency.exponentialRampToValueAtTime(f*slide,t+d);
+  g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(vol,t+.01); g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t+d+.03);
+}
+const SFX = {
+  snip:()=>tone(900,.08,'triangle',.14,0,.5),
+  join:()=>{tone(440,.08,'triangle',.15);tone(660,.12,'triangle',.15,.07)},
+  nope:()=>tone(200,.15,'square',.05),
+  happy:()=>[523,659,784,1047].forEach((f,i)=>tone(f,.2,'triangle',.16,i*.1)),
+  soft:()=>[392,330].forEach((f,i)=>tone(f,.2,'triangle',.13,i*.15)),
+  munch:()=>{for(let i=0;i<5;i++)tone(160+rnd(0,60),.06,'square',.05,i*.14)},
+  whoosh:()=>tone(520,.4,'sine',.07,0,.25),
+  spark:()=>[1319,1568,2093].forEach((f,i)=>tone(f,.16,'sine',.09,i*.07)),
+  wig:()=>tone(300,.12,'sine',.12,0,1.4)
+};
+let voice=null;
+function pickVoice(){
+  const de = speechSynthesis.getVoices().filter(v => (v.lang||'').toLowerCase().startsWith('de'));
+  voice = de.find(v => /google\s*deutsch/i.test(v.name))                    // Android: deutlich bessere Stimme
+        || de.find(v => /de[-_]de/i.test(v.lang) && /(katja|petra|anna|helena|marlene|hedda|vicki|serafina|amala)/i.test(v.name))
+        || de.find(v => /de[-_]de/i.test(v.lang)) || de[0] || null;
+}
+const HAS_SPEECH = 'speechSynthesis' in window;
+if(HAS_SPEECH){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+function speak(text, cancel=true, rate=.92){
+  if(!HAS_SPEECH) return; if(cancel) speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text); u.lang='de-DE'; if(voice)u.voice=voice; u.rate=rate; u.pitch=1.2;
+  speechSynthesis.speak(u);
+}
+const prompt = () => `Das Blatt hat Platz für ${W[S.T]}. Mach eine Raupe mit ${W[S.T]}!`;
+
+/* Zählen: Kugel für Kugel hüpfen und mitsprechen – die nächste Kugel kommt,
+   sobald die Stimme die Zahl zu Ende gesprochen hat */
+function countOut(els){
+  if(!els.length) return;
+  if(HAS_SPEECH) speechSynthesis.cancel();
+  let i = 0;
+  function step(){ if(++i >= els.length) return; hopAndSpeak(); }
+  function hopAndSpeak(){
+    const el = els[i];
+    el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
+    tone(420 + i*55, .1, 'triangle', .12);
+    if(!HAS_SPEECH){ setTimeout(step, 620); return; }
+    const u = new SpeechSynthesisUtterance(W[i+1]);
+    u.lang = 'de-DE'; if(voice) u.voice = voice; u.rate = 1; u.pitch = 1.2;
+    let went = false;
+    const go = () => { if(went) return; went = true; setTimeout(step, 180); };
+    u.onend = go; u.onerror = go;
+    speechSynthesis.speak(u);
+    setTimeout(go, 1100);                     // Sicherheitsnetz, falls onend nicht feuert
+  }
+  hopAndSpeak();
+}
+
+/* ---------- Spielstand ---------- */
+function load(){ try{const d=JSON.parse(localStorage.getItem(SAVE_KEY)||'{}'); S.solved=d.solved||0; S.flies=d.flies||0;}catch(e){} }
+function save(){ try{localStorage.setItem(SAVE_KEY,JSON.stringify({solved:S.solved,flies:S.flies}))}catch(e){} }
+const level = () => Math.min(3, Math.floor(S.solved/3));
+
+/* ---------- Maße ---------- */
+function metrics(){
+  const r = field.getBoundingClientRect();
+  s = Math.round(Math.max(40, Math.min(88, r.width/9.2, r.height/7.2)));
+  step = Math.round(s*.84);
+  field.style.setProperty('--s', s+'px');
+}
+const catW = n => s + (n-1)*step;
+const catH = () => s*1.32;
+function leafBox(){
+  const fw = field.clientWidth, fh = field.clientHeight;
+  const w = Math.min(catW(S.T) + s*1.6, fw - 8);
+  const h = s*2.1;
+  const x = Math.max(4, (fw - w)/2);
+  const y = fh - h - s*.45;                    // Blatt liegt jetzt unten
+  const slotX = x + (w - catW(S.T))/2, slotY = y + (h - s)/2;
+  return {x, y, w, h, slotX, slotY};
+}
+/* Die Raupen leben oberhalb des Blatts */
+const gardenTop = () => s*.4;
+const gardenBottom = () => leafBox().y - s*.3;
+
+/* ---------- Blatt ---------- */
+function renderLeaf(anim){
+  leafEl?.remove(); badgeEl?.remove();
+  const b = leafBox();
+  leafEl = document.createElement('div'); leafEl.className = 'leaf' + (anim?' enter':'');
+  colorVars(leafEl, S.T);
+  Object.assign(leafEl.style,{left:b.x+'px',top:b.y+'px',width:b.w+'px',height:b.h+'px'});
+  slots = [];
+  for(let i=0;i<S.T;i++){
+    const sl = document.createElement('div'); sl.className = 'slot' + (i>=5?' g2':'');
+    sl.style.left = (b.slotX - b.x - 4 + i*step)+'px'; sl.style.top = (b.slotY - b.y - 4)+'px';
+    leafEl.appendChild(sl); slots.push(sl);
+  }
+  badgeEl = document.createElement('div'); badgeEl.className = 'badge'; badgeEl.textContent = S.T;
+  colorVars(badgeEl, S.T);
+  let bx = b.x - s*1.6, by = b.y + b.h/2 - s*.72;
+  if(bx < 4){                                  // schmales Handy: Zahl oben rechts über dem Blatt
+    bx = Math.min(b.x + b.w - s*1.5, field.clientWidth - s*1.5 - 4);
+    by = b.y - s*1.3;
+  }
+  badgeEl.style.left = bx+'px'; badgeEl.style.top = by+'px';
+  badgeEl.addEventListener('pointerdown', e => { e.stopPropagation(); if(!S.busy){ countOut(slots); } });
+  field.append(leafEl, badgeEl);
+}
+
+/* ---------- Raupen ---------- */
+function makeCat(n, x, y){
+  const el = document.createElement('div'); el.className = 'cat';
+  const c = {n, x, y, el}; S.cats.push(c); field.appendChild(el);
+  renderCat(c); place(c); return c;
+}
+function renderCat(c){
+  c.el.innerHTML = '';
+  c.el.style.width = catW(c.n)+'px'; c.el.style.height = catH()+'px';
+  colorVars(c.el, c.n);
+  for(let i=0;i<c.n;i++){
+    const g = document.createElement('div');
+    g.className = 'seg' + (i>=5?' g2':'') + (i===0?' head':'');
+    g.dataset.i = i; g.style.left = (i*step)+'px'; g.style.zIndex = c.n - i;
+    if(i===0) g.innerHTML = '<i class="eye l"></i><i class="eye r"></i><i class="mouth"></i>';
+    c.el.appendChild(g);
+  }
+}
+function place(c){ c.el.style.left = c.x+'px'; c.el.style.top = c.y+'px'; }
+function removeCat(c){ c.el.remove(); S.cats = S.cats.filter(o=>o!==c); }
+function clamp(c){
+  const fw = field.clientWidth;
+  const maxY = Math.max(4, leafBox().y - catH() - s*.15);
+  c.x = Math.min(Math.max(c.x, 4), fw - catW(c.n) - 4);
+  c.y = Math.min(Math.max(c.y, 4), maxY);
+}
+function rectOf(c){ return {l:c.x, t:c.y + s*.32, r:c.x + catW(c.n), b:c.y + s*1.32}; }
+function overlap(a,b){
+  const A = rectOf(a), B = rectOf(b), p = s*.25;
+  return A.l < B.r + p && A.r > B.l - p && A.t < B.b + p && A.b > B.t - p;
+}
+
+/* ---------- Ziehen, Teilen, Zusammenstecken ---------- */
+let drag = null;
+const HOLD_MS = 600;                          // so lange festhalten = Teilen vorbereiten
+function removeArm(el){ el.classList.remove('armed','wig'); el.querySelector('.snipmark')?.remove(); }
+field.addEventListener('pointerdown', e => {
+  if(S.busy) return;
+  const catEl = e.target.closest('.cat'); if(!catEl) return;
+  const c = S.cats.find(o => o.el === catEl);
+  if(!c || c === S.leafCat) return;
+  ac(); e.preventDefault();
+  // Irgendwo an der Raupe packen: nächstgelegene Kugel. Wichtig: Wir rechnen
+  // ab der Kugelmitte, denn die Kugeln überlappen sich (breiter als der Abstand).
+  const rect = c.el.getBoundingClientRect();
+  const k = Math.max(0, Math.min(c.n - 1, Math.round((e.clientX - rect.left - s/2)/step)));
+  drag = {c, k, sx:e.clientX, sy:e.clientY, moved:false, split:false,
+    lpT:setTimeout(() => {                    // festgehalten: Teilen scharf schalten (✂️ + wackeln)
+      if(drag && !drag.moved && drag.k > 0 && drag.c === c){
+        drag.split = true;
+        c.el.classList.add('armed');
+        const mark = document.createElement('div'); mark.className = 'snipmark'; mark.textContent = '✂️';
+        mark.style.left = (drag.k*step)+'px'; mark.style.top = (s*.82)+'px';
+        c.el.appendChild(mark);
+        navigator.vibrate?.(80);
+      }
+    }, HOLD_MS)};
+  field.setPointerCapture(e.pointerId);
+  clearTimeout(S.hintT);
+});
+field.addEventListener('pointermove', e => {
+  if(!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if(!drag.moved){
+    if(Math.hypot(dx,dy) < 12) return;
+    drag.moved = true;
+    clearTimeout(drag.lpT);
+    removeArm(drag.c.el);
+    if(drag.split && drag.k > 0){         // erst festgehalten, dann gezogen: Raupe teilen
+      const c = drag.c;
+      const tail = makeCat(c.n - drag.k, c.x + drag.k*step, c.y);
+      c.n = drag.k; renderCat(c);
+      drag.c = tail; SFX.snip();
+    }
+    drag.ox = drag.c.x; drag.oy = drag.c.y;
+    drag.c.el.classList.remove('glide','wig'); drag.c.el.classList.add('drag');
+  }
+  drag.c.x = drag.ox + dx; drag.c.y = drag.oy + dy; place(drag.c);
+});
+function endDrag(e){
+  if(!drag) return;
+  const d = drag; drag = null;
+  clearTimeout(d.lpT);
+  removeArm(d.c.el);
+  if(!d.moved){ countOut([...d.c.el.children]); return; }   // (festgehalten) losgelassen: zählen
+  d.c.el.classList.remove('drag');
+  drop(d.c, e);
+}
+field.addEventListener('pointerup', endDrag);
+field.addEventListener('pointercancel', endDrag);
+
+function drop(c, e){
+  const fr = field.getBoundingClientRect(), b = leafBox();
+  const px = e.clientX - fr.left, py = e.clientY - fr.top;
+  const onLeaf = px > b.x - s*.5 && px < b.x + b.w + s*.5 && py > b.y - s*.5 && py < b.y + b.h + s*.5;
+  if(onLeaf && !S.leafCat){ toLeaf(c); return; }
+  const other = S.cats.find(o => o !== c && o !== S.leafCat && overlap(c,o));
+  if(other){
+    if(other.n + c.n <= 10){
+      other.n += c.n; removeCat(c); renderCat(other); clamp(other); place(other);
+      other.el.classList.remove('joined'); void other.el.offsetWidth; other.el.classList.add('joined');
+      SFX.join(); speak(W[other.n]);
+      return;
+    }
+    SFX.nope(); speak('Das wird zu lang!');
+    c.y += s*1.5;
+  }
+  clamp(c); place(c);
+}
+
+/* ---------- Aufs Blatt legen ---------- */
+function toLeaf(c){
+  S.leafCat = c; S.busy = true;
+  const home = {x:c.x, y:c.y}, b = leafBox();
+  c.el.classList.add('glide'); c.el.style.zIndex = 4;
+  c.x = b.slotX; c.y = b.slotY - s*.32; place(c);
+  setTimeout(() => {
+    if(c.n === S.T){ success(c); return; }
+    const segs = [...c.el.children];
+    if(c.n > S.T){
+      segs.slice(S.T).forEach(g => g.classList.add('over'));
+      speak(`Zu lang! ${Cap(W[c.n])} ist mehr als ${W[S.T]}.`);
+    } else {
+      slots.slice(c.n).forEach(sl => sl.classList.add('need'));
+      speak(`Zu kurz! ${Cap(W[c.n])} ist weniger als ${W[S.T]}.`);
+    }
+    SFX.soft();
+    setTimeout(() => {
+      segs.forEach(g => g.classList.remove('over'));
+      slots.forEach(sl => sl.classList.remove('need'));
+      c.x = home.x; c.y = home.y; clamp(c); place(c);
+      setTimeout(() => { c.el.classList.remove('glide'); c.el.style.zIndex = ''; }, 460);
+      S.leafCat = null; S.busy = false;
+    }, 2600);
+  }, 480);
+}
+
+function success(c){
+  SFX.munch();
+  [...c.el.children].forEach(g => g.classList.add('munch'));
+  speak(`Genau, ${W[S.T]}! Mmmh, lecker!`);
+  leafEl.classList.add('munch'); badgeEl.style.visibility = 'hidden';
+  setTimeout(() => {
+    // Raupe wird zum Schmetterling
+    const r = c.el.getBoundingClientRect(), chip = $('flyChip').getBoundingClientRect();
+    const f = document.createElement('span'); f.className = 'fly'; f.textContent = '🦋';
+    f.style.left = (r.left + r.width/2)+'px'; f.style.top = (r.top + r.height/2)+'px';
+    document.body.appendChild(f);
+    c.el.classList.add('fade'); SFX.happy();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      f.style.left = (chip.left + 20)+'px'; f.style.top = (chip.top + chip.height/2)+'px'; f.style.scale = '.4';
+    }));
+    setTimeout(() => {
+      f.remove(); S.flies++; S.solved++; save();
+      $('flies').textContent = S.flies;
+      const ch = $('flyChip'); ch.classList.remove('bump'); void ch.offsetWidth; ch.classList.add('bump');
+      SFX.spark();
+      newRound();
+    }, 1200);
+  }, 1300);
+}
+
+/* ---------- Runden ---------- */
+function makeRound(){
+  const L = level(); let T, p;
+  if(L === 0){                       // passende Raupe finden
+    T = rnd(2,5); p = [T];
+    const nd = rnd(1,2);
+    while(p.length < 1+nd){ const d = rnd(1,5); if(d!==T && !p.includes(d)) p.push(d); }
+  } else if(L === 1){                // zwei Raupen zusammenstecken
+    T = rnd(3,7); const a = rnd(1,T-1); let d; do{ d = rnd(1,4); }while(d===T);
+    p = [a, T-a, d];
+  } else if(L === 2){                // zusammenstecken oder teilen
+    T = rnd(4,9);
+    if(Math.random() < .5){ const a = rnd(1,T-1); p = [a, T-a, rnd(1,3)]; }
+    else { const k = rnd(1, Math.min(3, 10-T)); p = [T+k, rnd(1,3)]; }
+  } else {                           // bis 10, drei Teile oder teilen
+    T = rnd(5,10);
+    if(T === 10 || Math.random() < .5){ const a = rnd(1,T-2), b = rnd(1,T-a-1); p = [a, b, T-a-b]; }
+    else { const k = rnd(1, Math.min(3, 10-T)); p = [T+k, rnd(2,4)]; }
+  }
+  return {T, pieces: shuffle(p)};
+}
+
+function newRound(){
+  S.cats.forEach(c => c.el.remove()); S.cats = []; S.leafCat = null;
+  const {T, pieces} = makeRound(); S.T = T;
+  renderLeaf(true);
+  const fw = field.clientWidth, top = gardenTop(), bottom = gardenBottom();
+  const rowH = (bottom - top) / pieces.length;
+  SFX.whoosh();
+  pieces.forEach((n,i) => {
+    const y = top + i*rowH + Math.max(0, (rowH - catH())/2);
+    const x = rnd(Math.round(s*.4), Math.max(Math.round(s*.4), Math.round(fw - catW(n) - s*.4)));
+    const c = makeCat(n, -catW(n) - 20, y);
+    c.el.classList.add('glide');
+    setTimeout(() => { c.x = x; clamp(c); place(c); }, 60 + i*150);
+    setTimeout(() => c.el.classList.remove('glide'), 700 + i*150);
+  });
+  S.busy = false;
+  setTimeout(() => speak(prompt()), 700);
+  // Hilfe im ersten Level: nach einer Weile wackelt die passende Raupe
+  clearTimeout(S.hintT);
+  if(level() === 0) S.hintT = setTimeout(() => {
+    const hit = S.cats.find(c => c.n === S.T && c !== S.leafCat);
+    if(hit && !S.busy){ hit.el.classList.remove('wig'); void hit.el.offsetWidth; hit.el.classList.add('wig'); SFX.wig(); }
+  }, 10000);
+}
+
+/* ---------- Sonstiges ---------- */
+let resizeT;
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => {
+  metrics(); if(!S.T) return; renderLeaf(false);
+  S.cats.forEach(c => { renderCat(c); if(c !== S.leafCat){ clamp(c); } else { const b = leafBox(); c.x = b.slotX; c.y = b.slotY - s*.32; } place(c); });
+}, 150); });
+$('fs').addEventListener('click', () => {
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(()=>{});
+  else document.exitFullscreen?.();
+});
+// Eltern-Reset: Schmetterling-Anzeige 3 Sekunden gedrückt halten
+let resetT;
+$('flyChip').addEventListener('pointerdown', () => { resetT = setTimeout(() => {
+  if(confirm('Spielstand wirklich zurücksetzen?')){ localStorage.removeItem(SAVE_KEY); location.reload(); }
+}, 3000); });
+['pointerup','pointerleave','pointercancel'].forEach(ev => $('flyChip').addEventListener(ev, () => clearTimeout(resetT)));
+$('go').addEventListener('click', () => {
+  ac();
+  document.documentElement.requestFullscreen?.().catch(()=>{});
+  $('start').remove();
+  setTimeout(() => { metrics(); newRound(); }, 350);
+});
+document.addEventListener('contextmenu', e => e.preventDefault());
+load(); $('flies').textContent = S.flies; metrics();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{}));
+}
+</script>
+</body>
+</html>
