@@ -184,10 +184,27 @@ function pickVoice(){
 }
 const HAS_SPEECH = 'speechSynthesis' in window;
 if(HAS_SPEECH){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
-function speak(text, cancel=true, rate=.92){
-  if(!HAS_SPEECH) return; if(cancel) speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(text); u.lang='de-DE'; if(voice)u.voice=voice; u.rate=rate; u.pitch=1.2;
+/* TTS-Warteschlange: Ansagen laufen nacheinander komplett durch und werden
+   nicht von der nächsten abgebrochen. Nur countOut() räumt ab (Zählen
+   synckt mit den Hüpfern und darf Ansagen stoppen). */
+const ttsQ = []; let ttsBusy = false;
+function ttsPump(){
+  const text = ttsQ.shift();
+  if(text === undefined){ ttsBusy = false; return; }
+  ttsBusy = true;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'de-DE'; if(voice) u.voice = voice; u.rate = .92; u.pitch = 1.2;
+  let done = false;
+  const next = () => { if(done) return; done = true; setTimeout(ttsPump, 150); };
+  u.onend = next; u.onerror = next;
   speechSynthesis.speak(u);
+  setTimeout(next, 2600 + text.length*130);  // Sicherheitsnetz, falls onend nicht feuert
+}
+function ttsClear(){ ttsQ.length = 0; ttsBusy = false; if(HAS_SPEECH) speechSynthesis.cancel(); }
+function speak(text){
+  if(!HAS_SPEECH) return;
+  ttsQ.push(text);
+  if(!ttsBusy) ttsPump();
 }
 const prompt = () => `Das Blatt hat Platz für ${W[S.T]}. Mach eine Raupe mit ${W[S.T]}!`;
 
@@ -195,7 +212,7 @@ const prompt = () => `Das Blatt hat Platz für ${W[S.T]}. Mach eine Raupe mit ${
    sobald die Stimme die Zahl zu Ende gesprochen hat */
 function countOut(els){
   if(!els.length) return;
-  if(HAS_SPEECH) speechSynthesis.cancel();
+  if(HAS_SPEECH) ttsClear();                // Zählen startet sofort, Warteschlange leeren
   let i = 0;
   function step(){ if(++i >= els.length) return; hopAndSpeak(); }
   function hopAndSpeak(){
@@ -406,7 +423,7 @@ function toLeaf(c){
 function success(c){
   SFX.munch();
   [...c.el.children].forEach(g => g.classList.add('munch'));
-  speak(`Genau, ${W[S.T]}! Mmmh, lecker!`);
+  speak(`Genau, ${W[S.T]}! Lecker!`);
   leafEl.classList.add('munch'); badgeEl.style.visibility = 'hidden';
   setTimeout(() => {
     // Raupe wird zum Schmetterling
