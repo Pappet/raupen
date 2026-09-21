@@ -24,6 +24,11 @@ Farben stehen in `COLORS` in index.html.
 3. Ziel 4–9, zusammenstecken oder teilen
 4. Ziel 5–10, drei Teile oder teilen
 
+## Für Eltern
+Das Spiel schweigt komplett, solange es im Hintergrund ist (Sichtbarkeits-Wechsel):
+keine Ansagen, Töne oder Vibrationen in anderen Apps — beim Zurückkehren macht
+es genau dort weiter, wo es war.
+
 ## Veröffentlichen / Installieren / Ändern
 Wie bei der Pizzeria: GitHub Pages, in Chrome „App installieren“,
 nach Änderungen `VERSION` in `sw.js` hochzählen.

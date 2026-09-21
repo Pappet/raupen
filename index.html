@@ -158,6 +158,9 @@ let s = 60, step = 50, leafEl = null, badgeEl = null, slots = [];
 let AC=null;
 function ac(){ if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}} if(AC&&AC.state==='suspended')AC.resume(); return AC; }
 function tone(f,d=.12,type='sine',vol=.18,delay=0,slide=0){
+  // 🔇 Hintergrund: gar nichts von sich geben — Android teilt sich Audio mit
+  // allen anderen Apps, im Hintergrund schweigt das Spiel.
+  if(document.hidden) return;
   const a=ac(); if(!a) return; const t=a.currentTime+delay;
   const o=a.createOscillator(), g=a.createGain(); o.type=type; o.frequency.setValueAtTime(f,t);
   if(slide) o.frequency.exponentialRampToValueAtTime(f*slide,t+d);
@@ -189,6 +192,7 @@ if(HAS_SPEECH){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
    synckt mit den Hüpfern und darf Ansagen stoppen). */
 const ttsQ = []; let ttsBusy = false;
 function ttsPump(){
+  if(document.hidden){ ttsBusy = false; return; }   // Hintergrund: nicht sprechen
   const text = ttsQ.shift();
   if(text === undefined){ ttsBusy = false; return; }
   ttsBusy = true;
@@ -202,7 +206,7 @@ function ttsPump(){
 }
 function ttsClear(){ ttsQ.length = 0; ttsBusy = false; if(HAS_SPEECH) speechSynthesis.cancel(); }
 function speak(text){
-  if(!HAS_SPEECH) return;
+  if(!HAS_SPEECH || document.hidden) return;        // Hintergrund: gar nicht erst anstehen
   ttsQ.push(text);
   if(!ttsBusy) ttsPump();
 }
@@ -219,7 +223,7 @@ function countOut(els){
     const el = els[i];
     el.classList.remove('hop'); void el.offsetWidth; el.classList.add('hop');
     tone(420 + i*55, .1, 'triangle', .12);
-    if(!HAS_SPEECH){ setTimeout(step, 620); return; }
+    if(document.hidden || !HAS_SPEECH){ setTimeout(step, 620); return; }  // Hintergrund: still weiterzählen
     const u = new SpeechSynthesisUtterance(W[i+1]);
     u.lang = 'de-DE'; if(voice) u.voice = voice; u.rate = 1; u.pitch = 1.2;
     let went = false;
@@ -337,7 +341,7 @@ field.addEventListener('pointerdown', e => {
         const mark = document.createElement('div'); mark.className = 'snipmark'; mark.textContent = '✂️';
         mark.style.left = (drag.k*step)+'px'; mark.style.top = (s*.82)+'px';
         c.el.appendChild(mark);
-        navigator.vibrate?.(80);
+        if(!document.hidden) navigator.vibrate?.(80);   // keine Vibration im Hintergrund
       }
     }, HOLD_MS)};
   field.setPointerCapture(e.pointerId);
@@ -486,10 +490,12 @@ function newRound(){
   setTimeout(() => speak(prompt()), 700);
   // Hilfe im ersten Level: nach einer Weile wackelt die passende Raupe
   clearTimeout(S.hintT);
-  if(level() === 0) S.hintT = setTimeout(() => {
-    const hit = S.cats.find(c => c.n === S.T && c !== S.leafCat);
-    if(hit && !S.busy){ hit.el.classList.remove('wig'); void hit.el.offsetWidth; hit.el.classList.add('wig'); SFX.wig(); }
-  }, 10000);
+  if(level() === 0) S.hintT = setTimeout(hintTick, 10000);
+}
+function hintTick(){
+  if(document.hidden || !S.T || S.busy) return;   // nie im Hintergrund / vor dem Spielstart
+  const hit = S.cats.find(c => c.n === S.T && c !== S.leafCat);
+  if(hit){ hit.el.classList.remove('wig'); void hit.el.offsetWidth; hit.el.classList.add('wig'); SFX.wig(); }
 }
 
 /* ---------- Sonstiges ---------- */
@@ -516,6 +522,28 @@ $('go').addEventListener('click', () => {
 });
 document.addEventListener('contextmenu', e => e.preventDefault());
 load(); $('flies').textContent = S.flies; metrics();
+
+/* Hintergrund (mehrere Spiel-Apps auf dem Tablet): komplett schweigen. Die
+   Sprachausgabe des Systems wird von ALLEN Apps geteilt — ohne das quatscht
+   hier etwas in die gerade geöffnete App hinein und umgekehrt. Auch der
+   Hinweis-Timer stoppt im Hintergrund; beim Zurückkehren macht das Spiel
+   genau dort weiter, wo es war. */
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){
+    ttsClear();                                  // laufende Ansage sofort aus + Warteschlange leeren
+    clearTimeout(S.hintT);                       // kein Hinweis-Timer im Hintergrund
+    if(AC && AC.state === 'running') AC.suspend().catch(()=>{});  // schon geplante Töne sterben
+  }else{
+    if(AC && AC.state === 'suspended') AC.resume().catch(()=>{});
+    // Hinweis-Timer nur neu aufziehen, wenn die Spielfläche wirklich sichtbar
+    // ist (kein Start-Overlay mehr da) und eine Runde läuft
+    if(S.T && !$('start') && level() === 0){
+      clearTimeout(S.hintT);
+      S.hintT = setTimeout(hintTick, 10000);
+    }
+  }
+});
+window.addEventListener('pagehide', () => { ttsClear(); clearTimeout(S.hintT); });
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js', {scope:'./'}).catch(()=>{}));
